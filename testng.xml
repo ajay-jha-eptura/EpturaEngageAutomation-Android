@@ -4,7 +4,7 @@
     <test name="All Tests" preserve-order="true"> 
         <classes> 
             <class name="TestRunner.LoginTestRunner"/>
-            <class name="TestRunner.UserProfileTestRunner"/> 
+             <class name="TestRunner.UserProfileTestRunner"/> 
         </classes> 
     </test> 
 </suite>

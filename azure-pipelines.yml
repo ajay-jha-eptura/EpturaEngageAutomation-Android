@@ -41,6 +41,10 @@ variables:
   EMULATOR_DENSITY: '420'
   EMULATOR_RAM: '4096'
   EMULATOR_CORES: '4'
+  # Test Configuration
+  DEVICE_NAME: 'emulator-5554'
+  USE_EXTERNAL_APPIUM: 'true'
+  APPIUM_SERVER_URL: 'http://127.0.0.1:4723'
 
 stages:
   - stage: Setup
@@ -523,7 +527,7 @@ stages:
             inputs:
               mavenPomFile: 'pom.xml'
               goals: 'test'
-              options: '-Dtestng.xml=testng.xml -DdeviceName=emulator-5554 $(MAVEN_OPTS)'
+              options: '-DsuiteXmlFile=testng.xml -DdeviceName=$(DEVICE_NAME) $(MAVEN_OPTS)'
               publishJUnitResults: true
               testResultsFiles: '**/surefire-reports/TEST-*.xml'
               testRunTitle: 'Eptura Engage Android Tests'
@@ -533,6 +537,8 @@ stages:
             env:
               ANDROID_HOME: $(ANDROID_HOME)
               ANDROID_SDK_ROOT: $(ANDROID_HOME)
+              USE_EXTERNAL_APPIUM: $(USE_EXTERNAL_APPIUM)
+              APPIUM_SERVER_URL: $(APPIUM_SERVER_URL)
             continueOnError: true
 
           - script: |
@@ -663,6 +669,14 @@ stages:
               publishLocation: 'pipeline'
             condition: always()
 
+          - task: PublishPipelineArtifact@1
+            displayName: 'Publish Allure Results'
+            inputs:
+              targetPath: '$(Build.SourcesDirectory)/target/allure-results'
+              artifact: 'AllureResults'
+              publishLocation: 'pipeline'
+            condition: always()
+
           - task: PublishTestResults@2
             displayName: 'Publish TestNG Results'
             inputs:
@@ -672,3 +686,70 @@ stages:
               mergeTestResults: true
               failTaskOnFailedTests: false
             condition: always()
+
+          - script: |
+              echo "🧹 Cleaning up emulator and Appium..."
+              export PATH=$(ANDROID_HOME)/platform-tools:$PATH
+              
+              # Stop the app
+              adb shell am force-stop com.condecosoftware.condeco || true
+              
+              # Kill emulator
+              adb -e emu kill || true
+              pkill -9 emulator || true
+              pkill -9 qemu || true
+              
+              # Stop Appium
+              pkill -9 node || true
+              
+              # Stop ADB server
+              adb kill-server || true
+              
+              echo "✅ Cleanup completed"
+            displayName: 'Cleanup Emulator and Appium'
+            condition: always()
+
+  - stage: GenerateAllureReport
+    displayName: 'Generate Allure Report'
+    dependsOn: Test
+    condition: always()
+    jobs:
+      - job: AllureReport
+        displayName: 'Generate and Publish Allure Report'
+        steps:
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download Allure Results'
+            inputs:
+              artifactName: 'AllureResults'
+              targetPath: '$(Build.SourcesDirectory)/allure-results'
+
+          - script: |
+              set -e
+              echo "📊 Installing Allure CLI..."
+              
+              # Install Allure CLI
+              sudo apt-get update -qq
+              sudo apt-get install -y -qq default-jre
+              
+              # Download and install Allure
+              ALLURE_VERSION="2.29.0"
+              wget -q https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.tgz
+              tar -xzf allure-${ALLURE_VERSION}.tgz
+              export PATH=$PWD/allure-${ALLURE_VERSION}/bin:$PATH
+              
+              echo "✅ Allure CLI installed: $(allure --version)"
+              
+              # Generate Allure report
+              echo "📊 Generating Allure report..."
+              allure generate $(Build.SourcesDirectory)/allure-results -o $(Build.SourcesDirectory)/allure-report --clean
+              
+              echo "✅ Allure report generated"
+              ls -la $(Build.SourcesDirectory)/allure-report/
+            displayName: 'Generate Allure Report'
+
+          - task: PublishPipelineArtifact@1
+            displayName: 'Publish Allure Report'
+            inputs:
+              targetPath: '$(Build.SourcesDirectory)/allure-report'
+              artifact: 'AllureReport'
+              publishLocation: 'pipeline'

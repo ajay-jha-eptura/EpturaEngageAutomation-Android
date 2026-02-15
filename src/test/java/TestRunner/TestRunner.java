@@ -9,7 +9,7 @@ import appium.webdriver.extensions.Hooks;
 @CucumberOptions(
        features = "src/test/java/FeatureFiles",
        glue = {"com.client.app.stepDefs", "appium.webdriver.extensions"},
-       plugin = {"pretty"},
+       plugin = {"pretty", "io.qameta.allure.cucumber7jvm.AllureCucumber7Jvm"},
        monochrome = true
 )
 public class TestRunner extends AbstractTestNGCucumberTests {

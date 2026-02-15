@@ -1,6 +1,7 @@
 package com.client.app.stepDefs;
 import com.client.app.pages.LoginPage;
 import appium.webdriver.extensions.Utility;
+import appium.webdriver.logging.TestLogger;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.When;
 import io.cucumber.java.en.Then;
@@ -20,14 +21,15 @@ public class LoginStepDef {
    @Given("User is on Login page")
    public void UserLogin() throws MalformedURLException, InterruptedException
 	{
-		System.out.println("📱 App Launched");
-		// Ensure we're on the login page by checking for login elements or logging out if needed
+		TestLogger.step("User is on Login page");
+		TestLogger.app("App Launched");
 		loginPage.ensureLoginPageIsDisplayed();
 	}
    
 	@When("User performs Forms Login")
 	public void User_performs_Forms_Login() throws InterruptedException
 	{
+		TestLogger.step("User performs Forms Login");
 		loginPage.perform_Forms_Login(getServerName, getUserName, getPassword);
 	}
    
@@ -35,6 +37,7 @@ public class LoginStepDef {
 	@When("^User attempts Forms Login with wrong password as \"([^\"]*)\"$")
 	public void user_performs_Forms_Login_with_invalid_credentials(String incorrectpassword) throws InterruptedException
 	{
+		TestLogger.step("User attempts Forms Login with wrong password");
 		loginPage.perform_Forms_Login(getServerName, getUserName, incorrectpassword);
 	}
 	
@@ -42,15 +45,14 @@ public class LoginStepDef {
 	@Then("Verify authentication failed message")
 	public void verify_invalid_Forms_login()
 	{
-		Assert.assertTrue(loginPage.verify_invalid_login());
-		//The Assert.assertTrue() method will pass the test if verify_invalid_login() returns true and fail if it returns false.
+		TestLogger.step("Verify authentication failed message");
+		Assert.assertTrue(loginPage.verify_invalid_login(), "Authentication failed message not displayed");
 	}
 	
 	@Then("User successfully logged-in")
 	public void verify_UserLogin()
 	{
-		
+		TestLogger.step("Verify User successfully logged-in");
 		loginPage.verify_Valid_Login();
-
 	}
 }

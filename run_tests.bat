@@ -2,11 +2,21 @@
 REM ============================================================
 REM Run Tests on Emulator or Physical Device
 REM Automatically detects and uses available device
+REM Generates and opens Allure Report after test completion
 REM ============================================================
 
 echo ============================================================
 echo Eptura Engage Android Automation - Test Runner
 echo ============================================================
+echo.
+
+REM Clean up old reports
+echo Cleaning up old report files...
+if exist "test-output" rmdir /s /q "test-output"
+if exist "target\surefire-reports" rmdir /s /q "target\surefire-reports"
+if exist "target\allure-results" rmdir /s /q "target\allure-results"
+if exist "target\allure-report" rmdir /s /q "target\allure-report"
+echo Old reports cleaned up.
 echo.
 
 REM Set Android SDK location
@@ -79,7 +89,7 @@ if %DEVICE_COUNT%==0 (
     )
     
     echo.
-    echo ✓ Emulator started successfully!
+    echo Emulator started successfully!
     echo.
     
     REM Update config to use emulator
@@ -134,17 +144,120 @@ if errorlevel 1 (
     echo.
     echo Or download from Google Play Store on the emulator.
     echo.
-    pause
+    set /p CONTINUE_ANYWAY="Continue anyway? (y/n): "
+    if /i not "%CONTINUE_ANYWAY%"=="y" (
+        pause
+        exit /b 1
+    )
 )
 
-echo [5/5] Starting Appium and running tests...
+echo [5/5] Starting tests...
 echo.
 
 REM Run Maven tests
 call mvn clean test -Dtestng.xml=testng.xml
 
+REM Capture the test result
+set TEST_RESULT=%ERRORLEVEL%
+
 echo.
 echo ============================================================
 echo Test execution completed!
 echo ============================================================
+echo.
+
+REM ============================================================
+REM ALLURE REPORT GENERATION AND DISPLAY
+REM ============================================================
+
+echo ============================================================
+echo Generating and Opening Allure Report...
+echo ============================================================
+echo.
+
+REM Check if allure-results exist
+if not exist "target\allure-results" (
+    echo ERROR: No allure-results folder found!
+    echo Tests may not have run successfully.
+    echo.
+    pause
+    exit /b 1
+)
+
+REM Count result files
+set RESULT_COUNT=0
+for %%f in (target\allure-results\*.json) do set /a RESULT_COUNT+=1
+echo Found %RESULT_COUNT% result file(s) in target\allure-results
+echo.
+
+REM Check if allure CLI is available
+where allure >nul 2>&1
+if %ERRORLEVEL%==0 (
+    echo Allure CLI found. Serving report...
+    echo.
+    echo ============================================================
+    echo The Allure Report will open in your default browser.
+    echo Press Ctrl+C in this window to stop the server when done.
+    echo ============================================================
+    echo.
+    
+    REM Use allure serve - this is the proper way to view Allure reports
+    allure serve target\allure-results
+) else (
+    echo Allure CLI not found. Trying Maven plugin...
+    echo.
+    
+    REM Generate report using Maven
+    call mvn allure:report
+    
+    if exist "target\allure-report\index.html" (
+        echo.
+        echo Report generated at: target\allure-report\index.html
+        echo.
+        echo ============================================================
+        echo IMPORTANT: For best viewing experience, install Allure CLI:
+        echo.
+        echo Option 1 - Using Scoop (recommended for Windows):
+        echo   powershell -Command "irm get.scoop.sh | iex"
+        echo   scoop install allure
+        echo.
+        echo Option 2 - Using npm:
+        echo   npm install -g allure-commandline
+        echo.
+        echo Option 3 - Using Chocolatey:
+        echo   choco install allure
+        echo ============================================================
+        echo.
+        
+        REM Try to serve using Python if available
+        where python >nul 2>&1
+        if %ERRORLEVEL%==0 (
+            echo Starting local server to view report...
+            echo Report will be available at: http://localhost:8000
+            echo Press Ctrl+C to stop the server.
+            echo.
+            cd target\allure-report
+            start "" "http://localhost:8000"
+            python -m http.server 8000
+        ) else (
+            echo Opening report directly (may have limited functionality)...
+            start "" "target\allure-report\index.html"
+        )
+    ) else (
+        echo ERROR: Failed to generate Allure report.
+        echo Check Maven output for errors.
+    )
+)
+
+echo.
+if %TEST_RESULT%==0 (
+    echo ============================================================
+    echo ALL TESTS PASSED!
+    echo ============================================================
+) else (
+    echo ============================================================
+    echo SOME TESTS FAILED - Check the Allure report for details
+    echo ============================================================
+)
+
 pause
