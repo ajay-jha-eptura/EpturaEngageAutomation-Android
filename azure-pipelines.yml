@@ -702,15 +702,6 @@ stages:
               publishLocation: 'pipeline'
             condition: always()
 
-          # Publish Allure Report as HTML for viewing in Azure DevOps
-          - task: PublishHtmlReport@1
-            displayName: 'Publish Allure Report to Pipeline'
-            inputs:
-              reportDir: '$(Build.SourcesDirectory)/target/allure-report'
-              tabName: 'Allure Report'
-            condition: always()
-            continueOnError: true
-
           - task: PublishTestResults@2
             displayName: 'Publish TestNG Results'
             inputs:
