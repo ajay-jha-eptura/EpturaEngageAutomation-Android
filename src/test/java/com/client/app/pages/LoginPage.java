@@ -947,7 +947,7 @@ public class LoginPage extends DriverManager {
 
    /**
     * Wait for the credentials dialog to appear and become interactive.
-    * This is crucial because the credentials popup appears inside a dialog hierarchy
+    * The credentials dialog is shown in an Android Dialog container
     * (android:id/parentPanel, android:id/custom, etc.) and we need to wait for it to be fully rendered.
     * @param timeoutSeconds Maximum time to wait for the dialog
     * @return true if the credentials dialog is found and interactive, false otherwise
@@ -962,28 +962,59 @@ public class LoginPage extends DriverManager {
        By dialogCustom = By.id("android:id/custom");
        By dialogContent = By.id("android:id/content");
        
+       // Loading indicators that might block the credentials form
+       By progressBar = By.className("android.widget.ProgressBar");
+       By loadingText = By.xpath("//*[contains(@text, 'Loading') or contains(@text, 'Please wait')]");
+       
        int attemptCount = 0;
+       boolean dialogFoundOnce = false;
        
        while (System.currentTimeMillis() < endTime) {
            attemptCount++;
            try {
                TestLogger.debug("  Attempt " + attemptCount + " - Checking for credentials dialog...");
                
+               // Check for and handle ANR dialog
+               handleANRDialog();
+               
+               // Check for loading indicators
+               boolean isLoading = false;
+               try {
+                   if (Utility.isElementPresent(progressBar, 1)) {
+                       TestLogger.debug("    Loading indicator (ProgressBar) detected - waiting...");
+                       isLoading = true;
+                   }
+                   if (Utility.isElementPresent(loadingText, 1)) {
+                       TestLogger.debug("    Loading text detected - waiting...");
+                       isLoading = true;
+                   }
+               } catch (Exception e) { }
+               
+               // If loading, wait longer before next check
+               if (isLoading) {
+                   Thread.sleep(3000);
+                   continue;
+               }
+               
                boolean dialogFound = false;
                try {
                    if (Utility.isElementPresent(dialogParentPanel, 1)) {
                        TestLogger.debug("    Found dialog parent panel");
                        dialogFound = true;
+                       dialogFoundOnce = true;
                    } else if (Utility.isElementPresent(dialogCustom, 1)) {
                        TestLogger.debug("    Found dialog custom container");
                        dialogFound = true;
+                       dialogFoundOnce = true;
                    } else if (Utility.isElementPresent(dialogContent, 1)) {
                        TestLogger.debug("    Found dialog content container");
                        dialogFound = true;
+                       dialogFoundOnce = true;
                    }
                } catch (Exception e) { }
                
-               if (isAnyUsernameLocatorPresent(2)) {
+               // Use longer timeout for username field check on slow emulators
+               if (isAnyUsernameLocatorPresent(5)) {
                    WebElement usernameField = findUsernameField();
                    if (usernameField != null) {
                        boolean isDisplayed = usernameField.isDisplayed();
@@ -998,19 +1029,47 @@ public class LoginPage extends DriverManager {
                                
                                if (bounds != null && !bounds.isEmpty()) {
                                    TestLogger.pass("  Credentials dialog is fully loaded and interactive!");
-                                   Thread.sleep(500);
+                                   Thread.sleep(1000); // Extra stabilization time for slow emulators
                                    return true;
                                }
                            } catch (Exception boundsEx) {
                                TestLogger.debug("  Credentials dialog appears ready");
-                               Thread.sleep(500);
+                               Thread.sleep(1000);
                                return true;
                            }
                        }
                    }
                }
                
-               Thread.sleep(2000);
+               // If dialog was found but username not interactive, try tapping center of screen
+               // to dismiss any overlay or focus the dialog
+               if (dialogFoundOnce && attemptCount % 5 == 0) {
+                   TestLogger.debug("    Attempting tap to focus dialog...");
+                   try {
+                       int screenWidth = driver.manage().window().getSize().getWidth();
+                       int screenHeight = driver.manage().window().getSize().getHeight();
+                       new io.appium.java_client.TouchAction<>(driver)
+                           .tap(io.appium.java_client.touch.offset.PointOption.point(screenWidth / 2, screenHeight / 2))
+                           .perform();
+                       Thread.sleep(1000);
+                   } catch (Exception tapEx) {
+                       TestLogger.debug("    Tap failed: " + tapEx.getMessage());
+                   }
+               }
+               
+               // Print page source every 10 attempts for debugging
+               if (attemptCount % 10 == 0) {
+                   TestLogger.debug("    Current page source (for debugging):");
+                   try {
+                       String pageSource = driver.getPageSource();
+                       // Print first 2000 chars to avoid log flooding
+                       TestLogger.debug(pageSource.length() > 2000 ? pageSource.substring(0, 2000) + "..." : pageSource);
+                   } catch (Exception psEx) {
+                       TestLogger.debug("    Could not get page source: " + psEx.getMessage());
+                   }
+               }
+               
+               Thread.sleep(3000); // Increased sleep for slow CI emulators
                
            } catch (InterruptedException ie) {
                Thread.currentThread().interrupt();
@@ -1019,7 +1078,7 @@ public class LoginPage extends DriverManager {
            } catch (Exception e) {
                TestLogger.debug("    Check failed: " + e.getMessage());
                try {
-                   Thread.sleep(2000);
+                   Thread.sleep(3000);
                } catch (InterruptedException ie) {
                    Thread.currentThread().interrupt();
                    return false;
@@ -1029,6 +1088,15 @@ public class LoginPage extends DriverManager {
        
        long elapsedSeconds = (System.currentTimeMillis() - startTime) / 1000;
        TestLogger.fail("  Credentials dialog not found after " + elapsedSeconds + " seconds");
+       
+       // Print final page source for debugging
+       TestLogger.debug("  Final page source for debugging:");
+       try {
+           TestLogger.debug(driver.getPageSource());
+       } catch (Exception e) {
+           TestLogger.debug("  Could not get page source");
+       }
+       
        return false;
    }
    

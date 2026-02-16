@@ -41,10 +41,6 @@ variables:
   EMULATOR_DENSITY: '420'
   EMULATOR_RAM: '4096'
   EMULATOR_CORES: '4'
-  # Test Configuration
-  DEVICE_NAME: 'emulator-5554'
-  USE_EXTERNAL_APPIUM: 'true'
-  APPIUM_SERVER_URL: 'http://127.0.0.1:4723'
 
 stages:
   - stage: Setup
@@ -527,7 +523,7 @@ stages:
             inputs:
               mavenPomFile: 'pom.xml'
               goals: 'test'
-              options: '-DsuiteXmlFile=testng.xml -DdeviceName=$(DEVICE_NAME) $(MAVEN_OPTS)'
+              options: '-Dtestng.xml=testng.xml -DdeviceName=emulator-5554 $(MAVEN_OPTS)'
               publishJUnitResults: true
               testResultsFiles: '**/surefire-reports/TEST-*.xml'
               testRunTitle: 'Eptura Engage Android Tests'
@@ -537,8 +533,6 @@ stages:
             env:
               ANDROID_HOME: $(ANDROID_HOME)
               ANDROID_SDK_ROOT: $(ANDROID_HOME)
-              USE_EXTERNAL_APPIUM: $(USE_EXTERNAL_APPIUM)
-              APPIUM_SERVER_URL: $(APPIUM_SERVER_URL)
             continueOnError: true
 
           - script: |
