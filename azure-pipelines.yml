@@ -671,37 +671,6 @@ stages:
               publishLocation: 'pipeline'
             condition: always()
 
-          - script: |
-              echo "📊 Generating Allure HTML Report..."
-              
-              # Install Allure CLI
-              echo "📦 Installing Allure CLI..."
-              ALLURE_VERSION="2.27.0"
-              wget -q https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.tgz
-              tar -xzf allure-${ALLURE_VERSION}.tgz
-              export PATH=$PWD/allure-${ALLURE_VERSION}/bin:$PATH
-              
-              # Generate Allure report
-              if [ -d "$(Build.SourcesDirectory)/target/allure-results" ]; then
-                echo "📊 Generating report from allure-results..."
-                allure generate $(Build.SourcesDirectory)/target/allure-results -o $(Build.SourcesDirectory)/target/allure-report --clean
-                echo "✅ Allure HTML report generated successfully!"
-                echo "📁 Report contents:"
-                ls -la $(Build.SourcesDirectory)/target/allure-report/
-              else
-                echo "⚠️ No allure-results directory found, skipping report generation"
-              fi
-            displayName: 'Generate Allure HTML Report'
-            condition: always()
-
-          - task: PublishPipelineArtifact@1
-            displayName: 'Publish Allure HTML Report'
-            inputs:
-              targetPath: '$(Build.SourcesDirectory)/target/allure-report'
-              artifact: 'AllureReport'
-              publishLocation: 'pipeline'
-            condition: always()
-
           - task: PublishTestResults@2
             displayName: 'Publish TestNG Results'
             inputs:
@@ -778,3 +747,4 @@ stages:
               targetPath: '$(Build.SourcesDirectory)/allure-report'
               artifact: 'AllureReport'
               publishLocation: 'pipeline'
+            condition: always()

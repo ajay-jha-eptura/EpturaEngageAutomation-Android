@@ -11,6 +11,9 @@ public class Hooks {
    private static final AtomicInteger completedScenarios = new AtomicInteger(0);
    private static boolean appStarted = false;
    
+   // Scenario name that requires notification handling
+   private static final String LOGIN_SCENARIO = "CUMA-C226538";
+   
    @BeforeAll
    public static void beforeAll() {
        TestLogger.suiteStart("Eptura Engage Android Tests");
@@ -35,9 +38,13 @@ public class Hooks {
                TestLogger.app("App started for the first time");
            }
            
-           // Quick check for any leftover notifications from previous test
-           // No sleep needed - handleAppNotifications uses short timeouts
-           Utility.handleAppNotifications();
+           // Only handle notifications for the login scenario (CUMA-C226538)
+           if (scenario.getName().contains(LOGIN_SCENARIO)) {
+               TestLogger.info("Login scenario detected - handling app notifications...");
+               Utility.handleAppNotifications();
+           } else {
+               TestLogger.info("Skipping notification handling for non-login scenario");
+           }
            
        } catch (Exception e) {
            TestLogger.error("Driver initialization failed", e);

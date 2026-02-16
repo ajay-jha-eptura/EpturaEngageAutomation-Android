@@ -42,17 +42,11 @@ public class UserProfilePage extends DriverManager {
 		try {
 			TestLogger.step("Selecting user profile...");
 			
-			// Handle any notifications/popups before interacting with the profile
-			TestLogger.info("Handling any pending notifications before profile selection...");
-			Utility.handleAppNotifications();
-			
 			Utility.waitForElementUntilPresent(selectUserProfile_xpath, 10);
 			Utility.clickElement(selectUserProfile_xpath, 10);
 			TestLogger.pass("User profile selected");
 			
-			// Handle notifications again after navigating to profile page
 			Thread.sleep(1000);
-			Utility.handleAppNotifications();
 		} catch (Exception e) {
 			TestLogger.error("Error selecting user profile", e);
 			throw new RuntimeException("Failed to select user profile", e);
@@ -62,9 +56,6 @@ public class UserProfilePage extends DriverManager {
 	public String selectDefaultLocation() {
 		try {
 			TestLogger.step("Selecting default location...");
-			
-			// Handle any notifications/popups before interacting
-			Utility.handleAppNotifications();
 			
 			Utility.waitForElementUntilPresent(defaultLocationField_id, 10);
 			Utility.clickElement(defaultLocationField_id, 10);
